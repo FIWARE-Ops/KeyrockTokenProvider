@@ -69,11 +69,11 @@ async def get_handler(request):
         except TimeoutError:
             web.Response(text='Token request failed due to the timeout', status=504)
         except Exception as exception:
-            error('request_token, %s, %s, %s', status, text, exception)
+            error('request_token, %s', exception)
             return web.HTTPInternalServerError()
 
         if status == 200:
-            return web.Response(text=loads(text)['access_token'])
+            return web.Response(text=text['access_token'])
         else:
             if 'message' in text['error']:
                 text = text['error']['message']
@@ -116,7 +116,6 @@ if __name__ == '__main__':
     if not path.isfile(args.config):
         error('Config file not found')
         exit(1)
-
     try:
         with open(args.config) as file:
             temp = loads(file.read())
@@ -133,7 +132,6 @@ if __name__ == '__main__':
                 config[element['project']]['timeout'] = element['timeout']
             else:
                 config[element['project']]['timeout'] = None
-
     except KeyError:
         error('Config is not correct')
         exit(1)

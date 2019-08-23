@@ -10,13 +10,15 @@ It provides auth token from [Keyrock](https://fiware-idm.readthedocs.io/en/lates
 
 ## How to run
 ```console
-$ docker run -d \
-             -p 8080:8080 \
+$ docker run -it --rm \
+             -p 0.0.0.0:${PORT}:${PORT} \
              fiware/service.idmtokenprovider \
+             --ip 0.0.0.0 \
+             --port ${PORT} \
              --config ${PATH_TO_CONFIG}
 ```
 ```console
-$ curl http://localhost:8080/ping
+$ curl http://localhost:${PORT}/ping
 ```
 ## How to configure
 Sample config is located [here](./config.example.json).
@@ -24,13 +26,13 @@ Sample config is located [here](./config.example.json).
 ## How to use
 Ping
 ```console
-$ curl http://localhost:8080/ping
+$ curl http://localhost:${PORT}/ping
 ```
 Get version
 ```console
-$ curl http://localhost:8080/version
+$ curl http://localhost:${PORT}/version
 ```
 Get token
 ```console
-$ curl -XPOST -d "username=$USER&password=$PASSWORD" http://localhost:8080/$PROJECT
+$ curl -XPOST -d "username=${USER}&password=${PASSWORD}" http://localhost:${PORT}/$PROJECT
 ```
