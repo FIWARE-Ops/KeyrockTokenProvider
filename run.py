@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from aiohttp import web, BasicAuth, ClientSession, client_exceptions
+from aiohttp import web, BasicAuth, ClientSession, ClientConnectorError
+from asyncio import TimeoutError
 from argparse import ArgumentParser
 from os import path
 from urllib.parse import parse_qs
@@ -55,15 +56,22 @@ async def get_handler(request):
 
     url = config[project]['keyrock']+'/oauth2/token'
 
-    try:
-        async with ClientSession() as session:
-            async with session.post(url, auth=config[project]['auth'], data=data, headers=headers, timeout=0) as response:
-                if response.status == 200:
-                    return web.Response(text=loads(await response.text())['access_token'])
-                else:
-                    return web.Response(text="Keyrock reply: " + response.reason, status = response.status)
-    except client_exceptions.ClientConnectorError:
-        return web.HTTPBadGateway()
+    async with ClientSession() as session:
+        try:
+            async with session.post(url, auth=config[project]['auth'], data=data, headers=headers) as response:
+                status = response.status
+                text = await response.text()
+        except ClientConnectorError:
+            return web.HTTPBadGateway()
+        except TimeoutError:
+            return web.HTTPGatewayTimeout()
+        except Exception as exception:
+            return web.HTTPUnauthorized()
+
+        if response.status == 200:
+            return web.Response(text=loads(text)['access_token'])
+        else:
+            return web.Response(text="Keyrock reply: " + loads(text)['error'], status = status)
 
 
 @routes.get('/version')
