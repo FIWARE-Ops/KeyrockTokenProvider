@@ -2,6 +2,7 @@
 
 # Keyrock Token Provider
 [![Docker badge](https://img.shields.io/docker/pulls/fiware/service.keyrocktokenprovider.svg)](https://hub.docker.com/r/fiware/service.keyrocktokenprovider/)
+[![Build Status](https://travis-ci.org/FIWARE-Ops/KeyrockTokenProvider.svg?branch=master)](https://travis-ci.org/FIWARE-Ops/KeyrockTokenProvider)
 
 ## Overview
 This project is part of [FIWARE](https://fiware.org) OPS infrastructure.
