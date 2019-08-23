@@ -6,12 +6,17 @@ before_install: true
 install: true
 before_script: true
 script:
-- echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+- echo ${PASSWORD} | docker login -u ${USERNAME} --password-stdin
 - echo ${TRAVIS_BUILD_NUMBER} > version
 - echo ${TRAVIS_COMMIT} >> version
 - docker build  --no-cache -t fiware/service.keyrocktokenprovider .
 - docker push fiware/service.keyrocktokenprovider
 notifications:
   webhooks:
+    on_success: always
+    on_failure: never
+    on_start: never
+    on_cancel: never
+    on_error: never
     urls:
-      - ${WEBHOOK_URL}
+      secure: m8tDV7Mcm0dLDNKovfcolIQs61OIbDymgyqoS9fbfvy2f82FSSOfgpZIFoQcBmQo8fvytk4TKz6xLxs2axVsKs1fK/BdvQ+jL9qmgq6PL+2rVyhc6aidbado6oOG3WOWeXy6bBWd1wvh6BhB/o/5WvEgUs14exPguoX3AwjxGl3ubzB7m0ACL73OWp6tldqV3Nu+STMJMolmKk4NiO7ulx+ayJisz7MfF7ijGmhhJBdCwB9Uq/BtujyJLRhjtd+zubHIdYAHS63AHDlqmpWD7CHEwYyZRQcmYmxqECDvU5HAtwejOsSVUWtDqSCkOt2iFJwex/BVjufIA+Ts/yzTs44LOeB8V0nK9eZN1cNxd9cJXuj5nE4u7X88SWliEMTAYCAmRHor/RtIcRlZN6Ic9fDPN3sVS0N1NMXmJd8r2tKI6knB1i8PT+u1NE9Jv1exMrPk4fQLi1c+xJJIqrj2Qse8Fl3NDP9Jej+gHk+/1BKm0+eeOxJFXNI/lb7qFMSnjaS6kLf/b/Ba0isPA3vdqfEof9vaYT1/W4BVHfSIL6QTpawlo5wyPJR+IuN87K+BhFLavN/5ofUrpdX7nhpdz6ZrwQV4gISjimLrBijPHkSwj7/GvMF9V+UEweTJFwV/sGy5+bXHVMBM13bOE+LlDjkI78F9P6uSA8YvX3kVvUk=
