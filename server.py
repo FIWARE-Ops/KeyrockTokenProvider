@@ -106,6 +106,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if 'access_token' in reply:
                     self.reply({'message': reply['access_token']}, cmd=project)
                     return
+            elif resp.status_code == 401:
+                self.reply({'message': 'Invalid username or password'}, code=401, cmd=project)
+                return
             elif resp.status_code == 500:
                 if 'statusCode' in reply:
                     if reply['statusCode'] == 400:
