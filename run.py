@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 from aiohttp import web, BasicAuth, ClientSession, ClientConnectorError
-from asyncio import TimeoutError
 from argparse import ArgumentParser
+from asyncio import TimeoutError
+from logging import error, getLogger
 from os import path
 from urllib.parse import parse_qs
 from yajl import dumps, loads
-import logging
 
 
 config = dict()
@@ -32,12 +32,12 @@ async def get_handler(request):
     data = (await request.read()).decode('UTF-8')
 
     if not data:
-        return web.HTTPBadRequest()
+        return web.Response(text='Credentials are required', status=400)
 
     try:
         data = parse_qs(data)
     except ValueError:
-        return web.HTTPBadRequest()
+        return web.Response(text='Wrong credentials format', status=400)
 
     if 'username' in data:
         username = data['username'][0]
@@ -46,7 +46,7 @@ async def get_handler(request):
         password = data['password'][0]
 
     if not username or not password:
-        return web.HTTPBadRequest()
+        return web.Response(text='Username or password are not defined ', status=400)
 
     data = {'grant_type': 'password',
             'username': username,
@@ -58,20 +58,27 @@ async def get_handler(request):
 
     async with ClientSession() as session:
         try:
-            async with session.post(url, auth=config[project]['auth'], data=data, headers=headers) as response:
+            auth = config[project]['auth']
+            timeout = config[project]['timeout']
+            async with session.post(url, auth=auth, data=data, headers=headers, timeout=timeout) as response:
                 status = response.status
-                text = await response.text()
+                text = loads(await response.text())
         except ClientConnectorError:
-            return web.HTTPBadGateway()
+            web.Response(text='Token request failed due to the connection problem', status=502)
         except TimeoutError:
-            return web.HTTPGatewayTimeout()
+            web.Response(text='Token request failed due to the timeout', status=504)
         except Exception as exception:
-            return web.HTTPUnauthorized()
+            error('request_token, %s, %s, %s', status, text, exception)
+            return web.HTTPInternalServerError()
 
-        if response.status == 200:
+        if status == 200:
             return web.Response(text=loads(text)['access_token'])
         else:
-            return web.Response(text="Keyrock reply: " + loads(text)['error'], status = status)
+            if 'message' in text['error']:
+                text = text['error']['message']
+            else:
+                text = text['error']
+            return web.Response(text="Token request failed due to the: " + text, status = status)
 
 
 @routes.get('/version')
@@ -88,9 +95,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    getLogger().setLevel(40)
+
     version_path = './version'
     if not path.isfile(version_path):
-        logging.error('Version file not found')
+        error('Version file not found')
         exit(1)
     try:
         with open(version_path) as f:
@@ -99,26 +108,32 @@ if __name__ == '__main__':
             version['commit'] = version_file[1]
             version = dumps(version)
     except IndexError:
-        logging.error('Unsupported version file type')
+        error('Unsupported version file type')
         exit(1)
 
     if not path.isfile(args.config):
-        logging.error('Config file not found')
+        error('Config file not found')
         exit(1)
 
     try:
         with open(args.config) as file:
             temp = loads(file.read())
     except ValueError:
-        logging.error('Unsupported config type')
+        error('Unsupported config type')
         exit(1)
     try:
         for element in temp['projects']:
             config[element['project']] = dict()
             config[element['project']]['keyrock'] = element['keyrock']
             config[element['project']]['auth'] = BasicAuth(element['client_id'], element['client_secret'])
+
+            if 'timeout' in config[element['project']]:
+                config[element['project']]['timeout'] = element['timeout']
+            else:
+                config[element['project']]['timeout'] = None
+
     except KeyError:
-        logging.error('Config is not correct')
+        error('Config is not correct')
         exit(1)
 
     app = web.Application()

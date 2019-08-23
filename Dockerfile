@@ -7,6 +7,8 @@ COPY . /opt/
 
 RUN apk add --no-cache git build-base libffi-dev openssl-dev && \
     pip install -r requirements.txt && \
-    apk del build-base git libffi-dev openssl-dev
+    apk del git build-base libffi-dev openssl-dev
+
+USER nobody
 
 ENTRYPOINT ["/usr/bin/env", "python3", "-u", "/opt/run.py"]

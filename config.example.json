@@ -3,6 +3,14 @@
             "project": "project1",
             "keyrock": "https://account.lab.fiware.org",
             "client_id": "1",
-            "client_secret": "2"
-        }]
+            "client_secret": "2",
+            "timeout": 1
+        },
+        {
+            "project": "project2",
+            "keyrock": "https://account.fiware.org",
+            "client_id": "3",
+            "client_secret": "4"
+        }
+    ]
 }
