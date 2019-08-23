@@ -19,7 +19,7 @@ $ docker run -d \
 $ curl http://localhost:8080/ping
 ```
 ## How to configure
-Sample config is located [here](./config.json.example).
+Sample config is located [here](./config.example.json).
 
 ## How to use
 Ping

@@ -74,10 +74,9 @@ async def get_handler(request):
 if __name__ == '__main__':
 
     parser = ArgumentParser()
-    parser.add_argument('--ip', dest="ip", default='0.0.0.0', help='ip address (default: 0.0.0.0)', action="store")
-    parser.add_argument('--port', dest="port", default=8080, help='port (default: 8080)', action="store")
-    parser.add_argument('--config', dest='config_path', default='/opt/config.json',
-                        help='path to config file (default: /opt/config.json)',  action="store")
+    parser.add_argument('--ip', default='0.0.0.0', help='ip to use, default is 0.0.0.0')
+    parser.add_argument('--port', default=8080, help="port to use, default is 8080")
+    parser.add_argument('--config', default='/opt/config.json', help='path to config file, default is /opt/config.json')
 
     args = parser.parse_args()
 
@@ -95,12 +94,12 @@ if __name__ == '__main__':
         logging.error('Unsupported version file type')
         exit(1)
 
-    if not path.isfile(args.config_path):
+    if not path.isfile(args.config):
         logging.error('Config file not found')
         exit(1)
 
     try:
-        with open(args.config_path) as file:
+        with open(args.config) as file:
             temp = loads(file.read())
     except ValueError:
         logging.error('Unsupported config type')
