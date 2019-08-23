@@ -93,8 +93,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
             payload = {'grant_type': 'password',
                        'username': user,
-                       'password': password,
-                       'redirect_uri': config[project]['redirect_uri']}
+                       'password': password}
 
             url = config[project]['keyrock']+'/oauth2/token'
             try:
@@ -211,7 +210,6 @@ if __name__ == '__main__':
         for element in temp:
             config[element['project']] = dict()
             config[element['project']]['keyrock'] = element['keyrock']
-            config[element['project']]['redirect_uri'] = element['redirect_uri']
             config[element['project']]['auth'] = requests.auth.HTTPBasicAuth(element['client_id'], element['client_secret'])
     except KeyError:
         print(jsn.dumps({'message': 'Config is not correct', 'code': 500, 'cmd': 'start'}, indent=2))
