@@ -6,8 +6,8 @@
 
 ## Overview
 This project is part of [FIWARE](https://fiware.org) OPS infrastructure.
-It provides auth token from [FIWARE Keyrock](https://account.lab.fiware.org) to communicate with [Orion global instance](http://orion.lab.fiware.org:1026).
-It works in pair with [token_script](https://raw.githubusercontent.com/fgalan/oauth2-example-orion-client/master/token_script.sh) provided as part of 
+It provides auth token from FIWARE [Keyrock](https://account.lab.fiware.org) to communicate with [Orion global instance](http://orion.lab.fiware.org:1026).
+It works in pair with token [script](https://raw.githubusercontent.com/fgalan/oauth2-example-orion-client/master/token_script.sh) provided as part of 
 [Orion Context Broker](https://github.com/telefonicaid/fiware-orion) [QuickStart Guide](https://fiware-orion.readthedocs.io/en/master/quick_start_guide).
 
 ## How to run

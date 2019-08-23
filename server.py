@@ -42,32 +42,22 @@ def parse_request_line(request_line):
 
 class Handler(http.server.BaseHTTPRequestHandler):
 
-    def reply(self, message=dict(), silent=False, code=200, cmd=''):
-        self.send_response(code)
-        if cmd in cmd_get:
-            self.send_header('content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(bytes(jsn.dumps(message, indent=2) + '\n', 'utf8'))
-        else:
-            self.send_header('content-type', 'application/x-www-form-urlencoded')
-            self.end_headers()
-            self.wfile.write(bytes(message['message'] + '\n', 'utf8'))
+    def do_GET(self):
+        cmd = parse_request_line(self.requestline)
+        if not cmd:
+            message = {'message': 'Request not found'}
+            self.reply(message, code=404)
+            return
 
-        if not silent:
-            message['code'] = code
-            if self.headers.get('X-Real-IP'):
-                message['ip'] = self.headers.get('X-Real-IP')
-            else:
-                message['ip'] = self.client_address[0]
-            message['request'] = self.requestline
-            message['date'] = datetime.datetime.now().isoformat()
-            if cmd:
-                message['cmd'] = cmd
-            print(jsn.dumps(message, indent=2))
-        return
+        if cmd == 'ping':
+            message = {'message': 'Pong'}
+            self.reply(message, silent=True, cmd=cmd)
+            return
 
-    def log_message(self, format, *args):
-        return
+        if cmd == 'version':
+            message = {'message': version}
+            self.reply(message, cmd=cmd)
+            return
 
     def do_POST(self):
         cmd = parse_request_line(self.requestline)
@@ -120,22 +110,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     self.reply({'message': 'Keyrock Bad request'}, code=resp.status_code, cmd=cmd)
             return
 
-    def do_GET(self):
-        cmd = parse_request_line(self.requestline)
-        if not cmd:
-            message = {'message': 'Request not found'}
-            self.reply(message, code=404)
-            return
+    def log_message(self, format, *args):
+        return
 
-        if cmd == 'ping':
-            message = {'message': 'Pong'}
-            self.reply(message, silent=True, cmd=cmd)
-            return
+    def reply(self, message=None, silent=False, code=200, cmd=None):
+        self.send_response(code)
+        if cmd in cmd_get:
+            self.send_header('content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(bytes(jsn.dumps(message, indent=2) + '\n', 'utf8'))
+        else:
+            self.send_header('content-type', 'application/x-www-form-urlencoded')
+            self.end_headers()
+            self.wfile.write(bytes(message['message'] + '\n', 'utf8'))
 
-        if cmd == 'version':
-            message = {'message': version}
-            self.reply(message, cmd=cmd)
-            return
+        if not silent:
+            message['code'] = code
+            if self.headers.get('X-Real-IP'):
+                message['ip'] = self.headers.get('X-Real-IP')
+            else:
+                message['ip'] = self.client_address[0]
+            message['request'] = self.requestline
+            message['date'] = datetime.datetime.now().isoformat()
+            if cmd:
+                message['cmd'] = cmd
+            print(jsn.dumps(message, indent=2))
+        return
 
 
 class Thread(threading.Thread):
@@ -159,16 +159,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ip', dest="ip", default='0.0.0.0', help='ip address (default: 0.0.0.0)', action="store")
     parser.add_argument('--port', dest="port", default=8000, help='port (default: 8000)', action="store")
-    parser.add_argument('--threads', dest='threads', default=0, help='threads to start (default: 5)',
+    parser.add_argument('--threads', dest='threads', default=10, help='threads to start (default: 10)',
                         action="store")
-    parser.add_argument('--socks', dest='socks', default=0, help='threads to start (default: 5)',  action="store")
+    parser.add_argument('--socks', dest='socks', default=5, help='threads to start (default: 5)',  action="store")
 
     args = parser.parse_args()
 
-    ip = args.ip
-    port = args.port
-    threads = args.threads
-    socks = args.socks
+    address = (args.ip, args.port)
+    version_path = os.path.split(os.path.abspath(__file__))[0] + '/version'
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
+    cmd_get = ['ping', 'version']
+    cmd_post = ['token']
 
     if 'CLIENT_ID' in os.environ:
         client_id = os.environ['CLIENT_ID']
@@ -196,31 +198,30 @@ if __name__ == '__main__':
         print(jsn.dumps({'message': 'ORION not found, use defaults', 'code': 404, 'cmd': 'start'}, indent=2))
         orion = 'http://orion.lab.fiware.org:1026/version'
 
-    if threads == 0:
-        threads = 5
-    if socks == 0:
-        socks = 5
-
-    address = (ip, port)
-
-    cmd_get = ['ping', 'version']
-    cmd_post = ['token']
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     auth = requests.auth.HTTPBasicAuth(client_id, client_secret)
 
-    version_file = open(os.path.split(os.path.abspath(__file__))[0] + '/version').read().split('\n')
     version = dict()
-    version['build'] = version_file[0]
-    version['commit'] = version_file[1]
+    if not os.path.isfile(version_path):
+        print(jsn.dumps({'message': 'Version file not found', 'code': 500, 'cmd': 'start'}, indent=2))
+        version_file = None
+        sys.exit(1)
+    try:
+        with open(version_path) as f:
+            version_file = f.read().split('\n')
+            version['build'] = version_file[0]
+            version['commit'] = version_file[1]
+    except IndexError:
+        print(jsn.dumps({'message': 'Unsupported version file type', 'code': 500, 'cmd': 'start'}, indent=2))
+        sys.exit(1)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(address)
-    sock.listen(socks)
+    sock.listen(args.socks)
 
-    [Thread(i) for i in range(threads)]
+    [Thread(i) for i in range(args.threads)]
 
-    print(jsn.dumps({'message': 'Service started', 'code': 200, 'threads': threads, 'socks': socks}, indent=2))
+    print(jsn.dumps({'message': 'Service started', 'code': 200}, indent=2))
 
     while True:
         time.sleep(9999)
