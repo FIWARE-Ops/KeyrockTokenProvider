@@ -3,10 +3,11 @@
 
 from aiohttp import web, BasicAuth, ClientSession, ClientConnectorError
 from argparse import ArgumentParser
-from asyncio import TimeoutError
+from asyncio import TimeoutError, set_event_loop_policy
 from logging import error, getLogger
 from os import path
 from urllib.parse import parse_qs
+from uvloop import EventLoopPolicy
 from yajl import dumps, loads
 
 
@@ -96,6 +97,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     getLogger().setLevel(40)
+    set_event_loop_policy(EventLoopPolicy())
 
     version_path = './version'
     if not path.isfile(version_path):
