@@ -1,13 +1,8 @@
-[{
-    "project": "project1",
-    "keyrock": "https://keyrock1.example.com",
-    "client_id": "client1id",
-    "client_secret": "client1secret"
-  },
-  {
-    "project": "project2",
-     "keyrock": "https://keyrock2.example.com",
-     "client_id": "client2id",
-     "client_secret": "client2secret"
-  }
-]
+{
+    "projects": [{
+            "project": "project1",
+            "keyrock": "https://account.lab.fiware.org",
+            "client_id": "1",
+            "client_secret": "2"
+        }]
+}

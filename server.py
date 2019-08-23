@@ -210,7 +210,7 @@ if __name__ == '__main__':
         print(jsn.dumps({'message': 'Unsupported config type', 'code': 500, 'cmd': 'start'}, indent=2))
         sys.exit(1)
     try:
-        for element in temp:
+        for element in temp['projects']:
             config[element['project']] = dict()
             config[element['project']]['keyrock'] = element['keyrock']
             config[element['project']]['auth'] = requests.auth.HTTPBasicAuth(element['client_id'], element['client_secret'])
