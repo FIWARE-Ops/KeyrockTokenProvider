@@ -1,0 +1,15 @@
+[{
+    "project": "project1",
+    "keyrock": "https://keyrock1.example.com",
+    "client_id": "client1id",
+    "client_secret": "client1secret",
+    "redirect_uri": "https://cb1.example.com"
+  },
+  {
+    "project": "project2",
+     "keyrock": "https://keyrock2.example.com",
+     "client_id": "client2id",
+     "client_secret": "client2secret",
+     "redirect_uri": "https://cb2.example.com"
+  }
+]

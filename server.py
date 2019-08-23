@@ -11,16 +11,17 @@ import os
 import sys
 import datetime
 import argparse
+from urllib.parse import parse_qs
 
 
 def get_credentials(body):
     if 'username' in body:
-        user = body['username']
+        user = body['username'][0]
     else:
         return False, False
 
     if 'password' in body:
-        password = body['password']
+        password = body['password'][0]
     else:
         return False, False
 
@@ -34,7 +35,7 @@ def parse_request_line(request_line):
 
     if method == 'GET' and cmd in cmd_get:
         return cmd
-    if method == 'POST' and cmd in cmd_post:
+    if method == 'POST' and cmd in cmd_post or cmd:
         return cmd
 
     return False
@@ -60,55 +61,62 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
 
     def do_POST(self):
-        cmd = parse_request_line(self.requestline)
-        if not cmd:
+        project = parse_request_line(self.requestline)
+        if not project:
             message = {'message': 'Request not found'}
             self.reply(message, code=404)
             return
 
-        if cmd == 'token':
+        if project in config:
             content_length = int(self.headers.get('content-length'))
 
             if content_length == 0:
                 message = {'message': 'Length Required'}
-                self.reply(message, code=411, cmd=cmd)
+                self.reply(message, code=411, cmd=project)
                 return
 
             body = self.rfile.read(content_length).decode('utf-8')
 
             try:
-                body = jsn.loads(body)
+                body = parse_qs(body)
             except ValueError:
                 message = {'message': 'Unsupported media type'}
-                self.reply(message, code=400, cmd=cmd)
+                self.reply(message, code=400, cmd=project)
                 return
 
             user, password = get_credentials(body)
 
             if not user or not password:
-                message = {'message': 'Missing username or password', 'cmd': cmd}
+                message = {'message': 'Missing username or password', 'cmd': project}
                 self.reply(message, code=400)
                 return
 
             payload = {'grant_type': 'password',
                        'username': user,
                        'password': password,
-                       'redirect_uri': orion}
+                       'redirect_uri': config[project]['redirect_uri']}
 
+            url = config[project]['keyrock']+'/oauth2/token'
             try:
-                resp = requests.post(idm, auth=auth, data=payload, headers=headers, timeout=5)
+                resp = requests.post(url, auth=config[project]['auth'], data=payload, headers=headers, timeout=5)
             except requests.exceptions.ConnectionError:
-                self.reply({'message': 'IDM request timeout'}, code=408, cmd=cmd)
+                self.reply({'message': 'Keyrock request timeout'}, code=408, cmd=project)
                 return
             reply = jsn.loads(resp.text)
             if resp.status_code == 200:
                 if 'access_token' in reply:
-                    self.reply({'message': reply['access_token']}, cmd=cmd)
-            elif resp.status_code == 401:
-                    self.reply({'message': 'Invalid username or password'}, code=401, cmd=cmd)
-            else:
-                    self.reply({'message': 'Keyrock Bad request'}, code=resp.status_code, cmd=cmd)
+                    self.reply({'message': reply['access_token']}, cmd=project)
+                    return
+            elif resp.status_code == 500:
+                if 'statusCode' in reply:
+                    if reply['statusCode'] == 400:
+                        self.reply({'message': 'Invalid username or password'}, code=401, cmd=project)
+                        return
+            self.reply({'message': 'Keyrock Bad request'}, code=resp.status_code, cmd=project)
             return
+        else:
+            self.reply({'message': 'Project not found'}, code=404, cmd=project)
+        return
 
     def log_message(self, format, *args):
         return
@@ -162,7 +170,8 @@ if __name__ == '__main__':
     parser.add_argument('--threads', dest='threads', default=10, help='threads to start (default: 10)',
                         action="store")
     parser.add_argument('--socks', dest='socks', default=5, help='threads to start (default: 5)',  action="store")
-
+    parser.add_argument('--config', dest='config_path', default='/opt/config.json',
+                        help='path to config file (default: /opt/config.json)',  action="store")
     args = parser.parse_args()
 
     address = (args.ip, args.port)
@@ -171,34 +180,6 @@ if __name__ == '__main__':
 
     cmd_get = ['ping', 'version']
     cmd_post = ['token']
-
-    if 'CLIENT_ID' in os.environ:
-        client_id = os.environ['CLIENT_ID']
-    else:
-        print(jsn.dumps({'message': 'CLIENT_ID not found', 'code': 500, 'cmd': 'start'}, indent=2))
-        client_id = None
-        sys.exit(1)
-
-    if 'CLIENT_SECRET' in os.environ:
-        client_secret = os.environ['CLIENT_SECRET']
-    else:
-        print(jsn.dumps({'message': 'CLIENT_SECRET not found', 'code': 500, 'cmd': 'start'}, indent=2))
-        client_secret = None
-        sys.exit(1)
-
-    if 'IDM' in os.environ:
-        idm = os.environ['IDM']
-    else:
-        print(jsn.dumps({'message': 'IDM not found, use defaults', 'code': 404, 'cmd': 'start'}, indent=2))
-        idm = 'https://account.lab.fiware.org/oauth2/token'
-
-    if 'ORION' in os.environ:
-        orion = os.environ['ORION']
-    else:
-        print(jsn.dumps({'message': 'ORION not found, use defaults', 'code': 404, 'cmd': 'start'}, indent=2))
-        orion = 'http://orion.lab.fiware.org:1026/version'
-
-    auth = requests.auth.HTTPBasicAuth(client_id, client_secret)
 
     version = dict()
     if not os.path.isfile(version_path):
@@ -212,6 +193,28 @@ if __name__ == '__main__':
             version['commit'] = version_file[1]
     except IndexError:
         print(jsn.dumps({'message': 'Unsupported version file type', 'code': 500, 'cmd': 'start'}, indent=2))
+        sys.exit(1)
+
+    config=dict()
+    if not os.path.isfile(args.config_path):
+        print(jsn.dumps({'message': 'Config file not found', 'code': 500, 'cmd': 'start'}, indent=2))
+        config_file = None
+        sys.exit(1)
+
+    try:
+        with open(args.config_path) as file:
+            temp = jsn.load(file)
+    except ValueError:
+        print(jsn.dumps({'message': 'Unsupported config type', 'code': 500, 'cmd': 'start'}, indent=2))
+        sys.exit(1)
+    try:
+        for element in temp:
+            config[element['project']] = dict()
+            config[element['project']]['keyrock'] = element['keyrock']
+            config[element['project']]['redirect_uri'] = element['redirect_uri']
+            config[element['project']]['auth'] = requests.auth.HTTPBasicAuth(element['client_id'], element['client_secret'])
+    except KeyError:
+        print(jsn.dumps({'message': 'Config is not correct', 'code': 500, 'cmd': 'start'}, indent=2))
         sys.exit(1)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
