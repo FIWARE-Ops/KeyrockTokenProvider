@@ -65,9 +65,9 @@ async def get_handler(request):
                 status = response.status
                 text = loads(await response.text())
         except ClientConnectorError:
-            web.Response(text='Token request failed due to the connection problem', status=502)
+            return web.Response(text='Token request failed due to the connection problem', status=502)
         except TimeoutError:
-            web.Response(text='Token request failed due to the timeout', status=504)
+            return web.Response(text='Token request failed due to the timeout', status=504)
         except Exception as exception:
             error('request_token, %s', exception)
             return web.HTTPInternalServerError()
